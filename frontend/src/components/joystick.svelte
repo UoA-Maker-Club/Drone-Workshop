@@ -1,19 +1,20 @@
 <script lang="ts">
     import { onMount } from 'svelte';
+    export let ch1: number;
+    export let ch2: number;
+    export let bounceBack = true;
 
-    type pos = {
+    type Pos = {
         x: number,
         y: number
     }
 
-    let joystick;
-    let thumbStick;
+    let joystick: HTMLElement;
+    let thumbStick: HTMLElement;
     let joystickSize: number;
-    let bounceBack = true;
-    let ch1 = 1;
-    let ch2 = 3;
 
-    let joystickPos: pos = {
+
+    let joystickPos: Pos = {
         x: 0,
         y: 0
     }
@@ -36,7 +37,7 @@
         if(yMapped > 255) yMapped = 255;
         else if (yMapped < -255) yMapped = -255;
 
-        const ret = {};
+        const ret: any = {};
         ret[`ch${ch1}`] = xMapped;
         ret[`ch${ch2}`] = yMapped;
 
@@ -81,7 +82,7 @@
         }
     }
 
-    function sendApiRequest(pos: Pos) {
+    async function sendApiRequest(pos: Pos) {
         const body = mapChannel(pos);
 
         // TODO update URL
@@ -124,4 +125,75 @@
     <div class="thumb-stick" bind:this={thumbStick}/>
 </div>
 
-<style lang="scss" />
+<style lang="scss" >
+    $main: #66f;
+    $thumbWidth: 40px;
+
+    .joystick {
+    	width: 200px;
+    	height: 200px;
+    	border-radius: 50%;
+    	background-color: white;
+    	position: relative;
+    	border: 2px solid $main;
+    	box-sizing: border-box;
+    }
+
+    .markers {
+    	.line {
+    		position: absolute;
+    		height: 2px;
+    		width: 20px;
+    		background-color: $main;
+    		transform-origin: 0;
+
+    		&:nth-child(1) {
+    			top: 0;
+    			left: 50%;
+    			rotate: 90deg;
+    			translate: 0 -2px;
+    		}
+
+    		&:nth-child(2) {
+    			top: 50%;
+    			left: 0;
+    			translate: 0 -2px;
+    		}
+
+    		&:nth-child(3) {
+    			bottom: 0;
+    			left: 50%;
+    			translate: 0 -18px;
+    			rotate: 90deg;
+    		}
+
+    		&:nth-child(4) {
+    			top: 50%;
+    			right: 0;
+    			translate: 0 -2px;
+    		}
+    	}
+
+    	.center {
+    		position: absolute;
+    		top: 50%;
+    		left: 50%;
+    		transform: translate(-50%, -50%);
+    		width: $thumbWidth;
+    		height: $thumbWidth;
+    		background-color: #777;
+    		border-radius: 50%;
+    	}
+    }
+
+    .thumb-stick {
+    	width: $thumbWidth;
+    	height: $thumbWidth;
+    	border-radius: 50%;
+    	background-color: $main;
+    	position: absolute;
+    	top: 50%;
+    	left: 50%;
+    	transform: translate(-50%, -50%);
+    }
+</style>
