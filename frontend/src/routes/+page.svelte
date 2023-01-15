@@ -1,2 +1,17 @@
-<h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://kit.svelte.dev">kit.svelte.dev</a> to read the documentation</p>
+<script lang="ts">
+    import Joystick from "../components/joystick.svelte";
+</script>
+
+<div class="buttons">
+    <button> btn 1 </button>
+    <button> btn 2 </button>
+    <button> btn 3 </button>
+
+</div>
+<div class="joystick-cont">
+    <Joystick />
+
+    <Joystick />
+</div>
+
+<style lang="scss" />
