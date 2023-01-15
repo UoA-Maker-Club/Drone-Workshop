@@ -1,36 +1,35 @@
 <script lang="ts">
-    import Joystick from "../components/joystick.svelte";
+    import Buttons from "../components/Buttons.svelte";
+import Joystick from "../components/joystick.svelte";
+
+    let armed = false;
+
+    function toggleArmed(){
+        armed = !armed;
+    }
 </script>
 
-<div class="buttons">
-    <button> btn 1 </button>
-    <button> btn 2 </button>
-    <button> btn 3 </button>
-</div>
+<div class="layout">
+    <Buttons />
 
-<div class="joystick-cont">
-    <Joystick ch1={1} ch2={2} />
 
-    <Joystick ch1={3} ch2={4} bounceBack={false} />
+    <div class="joystick-cont">
+        <Joystick ch1={1} ch2={2} />
+
+        <Joystick ch1={3} ch2={4} bounceBack={false} />
+    </div>
 </div>
 
 <style lang="scss" >
-    .buttons {
-	    display: none;
-	    flex-direction: row;
-	    align-items: center;
-	    justify-content: space-around;
-	    height: 30px;
-	    margin-top: 10px;
 
-	    button {
-	    	width: 100px;
-	    	height: 30px;
-	    	border: none;
-	    	border-radius: 20px;
-	    	border: 2px solid #66f;
-	    }
+    .layout{
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-around;
+        height: 100vh;
     }
+
 
     .joystick-cont {
     	display: flex;
