@@ -16,7 +16,7 @@
 
 <style lang="scss" >
     .buttons {
-	    display: flex;
+	    display: none;
 	    flex-direction: row;
 	    align-items: center;
 	    justify-content: space-around;
@@ -37,7 +37,7 @@
     	flex-direction: row;
     	align-items: center;
     	justify-content: space-around;
-    	height: calc(100vh - 40px);
+    	height: 300px;
     	width: 100vw;
         overflow: hidden;
     }
