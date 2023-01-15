@@ -1,243 +1,103 @@
-
-// Load Wi-Fi library
-#include <WiFi.h>
 #define PPM_FRAME_LENGTH 22500
 #define PPM_PULSE_LENGTH 300
 #define PPM_CHANNELS 8
 #define DEFAULT_CHANNEL_VALUE 1500
+
 #define OUTPUT_PIN 13
 
-
-// CHANGE VALUES TO EACH CORRESPONDING CHANNEL
-// YAW, ROLL, PITCH, THROTTLE, ARM,
-uint16_t channelValue[PPM_CHANNELS] = {1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500};
+uint16_t channelValue[16] = {1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1500};
 
 hw_timer_t *timer = NULL;
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
 enum ppmState_e
 {
-  PPM_STATE_IDLE,
-  PPM_STATE_PULSE,
-  PPM_STATE_FILL,
-  PPM_STATE_SYNC
+    PPM_STATE_IDLE,
+    PPM_STATE_PULSE,
+    PPM_STATE_FILL,
+    PPM_STATE_SYNC
 };
+
+int getRcChannel_wrapper(uint8_t channel)
+{
+    if (channel >= 0 && channel < 16)
+    {
+        return channelValue[channel];
+    }
+    else
+    {
+        return DEFAULT_CHANNEL_VALUE;
+    }
+}
 
 void IRAM_ATTR onPpmTimer()
 {
 
-  static uint8_t ppmState = PPM_STATE_IDLE;
-  static uint8_t ppmChannel = 0;
-  static uint8_t ppmOutput = LOW;
-  static int usedFrameLength = 0;
-  int currentChannelValue;
+    static uint8_t ppmState = PPM_STATE_IDLE;
+    static uint8_t ppmChannel = 0;
+    static uint8_t ppmOutput = LOW;
+    static int usedFrameLength = 0;
+    int currentChannelValue;
 
-  portENTER_CRITICAL(&timerMux);
+    portENTER_CRITICAL(&timerMux);
 
-  if (ppmState == PPM_STATE_IDLE)
-  {
-    ppmState = PPM_STATE_PULSE;
-    ppmChannel = 0;
-    usedFrameLength = 0;
-    ppmOutput = LOW;
-  }
-
-  if (ppmState == PPM_STATE_PULSE)
-  {
-    ppmOutput = HIGH;
-    usedFrameLength += PPM_PULSE_LENGTH;
-    ppmState = PPM_STATE_FILL;
-
-    timerAlarmWrite(timer, PPM_PULSE_LENGTH, true);
-  }
-  else if (ppmState == PPM_STATE_FILL)
-  {
-    ppmOutput = LOW;
-    currentChannelValue = channelValue[ppmChannel];
-
-    ppmChannel++;
-    ppmState = PPM_STATE_PULSE;
-
-    if (ppmChannel >= PPM_CHANNELS)
+    if (ppmState == PPM_STATE_IDLE)
     {
-      ppmChannel = 0;
-      timerAlarmWrite(timer, PPM_FRAME_LENGTH - usedFrameLength, true);
-      usedFrameLength = 0;
+        ppmState = PPM_STATE_PULSE;
+        ppmChannel = 0;
+        usedFrameLength = 0;
+        ppmOutput = LOW;
     }
-    else
+
+    if (ppmState == PPM_STATE_PULSE)
     {
-      usedFrameLength += currentChannelValue - PPM_PULSE_LENGTH;
-      timerAlarmWrite(timer, currentChannelValue - PPM_PULSE_LENGTH, true);
+        ppmOutput = !ppmOutput;
+        usedFrameLength += PPM_PULSE_LENGTH;
+        ppmState = PPM_STATE_FILL;
+
+        timerAlarmWrite(timer, PPM_PULSE_LENGTH, true);
     }
-  }
-  portEXIT_CRITICAL(&timerMux);
-  digitalWrite(OUTPUT_PIN, ppmOutput);
-}
+    else if (ppmState == PPM_STATE_FILL)
+    {
+        // ppmOutput = LOW;
+        currentChannelValue = getRcChannel_wrapper(ppmChannel);
 
+        ppmChannel++;
+        ppmState = PPM_STATE_PULSE;
 
-// NEED HELP CODING
-// TERRIBLE WIFI ACCESS POINT
-//-------------------------------------------------------------------------------------------------------------------//
-// Replace with your network credentials
-const char* ssid     = "ESP32-Access-Point";
-const char* password = "123456789";
-
-// Set web server port number to 80
-WiFiServer server(80);
-
-// Variable to store the HTTP request
-String header;
-
-// Auxiliar variables to store the current output state
-String output26State = "off";
-String output27State = "off";
-
-// PINS CONNECTING TO FLIGHT CONTROLLER
-// Assign output variables to GPIO pins
-const int output26 = 26;
-const int output27 = 27;
-
-void setup() {
-
-  pinMode(OUTPUT_PIN, OUTPUT);
-  timer = timerBegin(0, 80, true);
-  timerAttachInterrupt(timer, &onPpmTimer, true);
-  timerAlarmWrite(timer, 12000, true);
-  timerAlarmEnable(timer);
-
-
-  Serial.begin(115200);
-  // Initialize the output variables as outputs
-  pinMode(output26, OUTPUT);
-  pinMode(output27, OUTPUT);
-  // Set outputs to LOW
-  digitalWrite(output26, LOW);
-  digitalWrite(output27, LOW);
-
-  // Connect to Wi-Fi network with SSID and password
-  Serial.print("Setting AP (Access Point)…");
-  // Remove the password parameter, if you want the AP (Access Point) to be open
-  WiFi.softAP(ssid, password);
-
-  IPAddress IP = WiFi.softAPIP();
-  Serial.print("AP IP address: ");
-  Serial.println(IP);
-
-  server.begin();
-}
-
-void loop() {
-  WiFiClient client = server.available();   // Listen for incoming clients
-
-  if (client) {                             // If a new client connects,
-    Serial.println("New Client.");          // print a message out in the serial port
-    String currentLine = "";                // make a String to hold incoming data from the client
-
-    while (client.connected()) {            // loop while the client's connected
-      // SET THROTTLE CHANNEL TO 2000? Looked at this a while ago so I dont remember
-      // Prevents the flight controller from going to sleep mode
-      channelValue[4] = 2000;
-
-      if (client.available()) {             // if there's bytes to read from the client,
-        char c = client.read();             // read a byte, then
-        Serial.write(c);                    // print it out the serial monitor
-        header += c;
-        if (c == '\n') {                    // if the byte is a newline character
-          // if the current line is blank, you got two newline characters in a row.
-          // that's the end of the client HTTP request, so send a response:
-          if (currentLine.length() == 0) {
-            // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
-            // and a content-type so the client knows what's coming, then a blank line:
-            client.println("HTTP/1.1 200 OK");
-            client.println("Content-type:text/html");
-            client.println("Connection: close");
-            client.println();
-
-
-
-            //------------------------------------------------------------------------------//
-            // Flight control
-
-            // turns the GPIOs on and off
-            if (header.indexOf("GET /26/on") >= 0) {
-              Serial.println("GPIO 26 on");
-
-              // Increases throttle when up button is pressed
-              channelValue[2] = channelValue[2] + 100;
-              output26State = "on";
-              digitalWrite(output26, HIGH);
-            } else if (header.indexOf("GET /26/off") >= 0) {
-              Serial.println("GPIO 26 off");
-              output26State = "off";
-              digitalWrite(output26, LOW);
-            } else if (header.indexOf("GET /27/on") >= 0) {
-              Serial.println("GPIO 27 on");
-
-              // Decreases throttle when down button is pressed
-              channelValue[2] = channelValue[2] - 100;
-              output27State = "on";
-              digitalWrite(output27, HIGH);
-
-            } else if (header.indexOf("GET /27/off") >= 0) {
-              Serial.println("GPIO 27 off");
-              output27State = "off";
-              digitalWrite(output27, LOW);
-            }
-
-            //------------------------------------------------------------------------------//
-
-
-
-            // Display the HTML web page
-            client.println("<!DOCTYPE html><html>");
-            client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
-            client.println("<link rel=\"icon\" href=\"data:,\">");
-            // CSS to style the on/off buttons
-            // Feel free to change the background-color and font-size attributes to fit your preferences
-            client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
-            client.println(".button { background-color: #4CAF50; border: none; color: white; padding: 16px 40px;");
-            client.println("text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}");
-            client.println(".button2 {background-color: #555555;}</style></head>");
-
-            // Web Page Heading
-            client.println("<body><h1>ESP32 Web Server</h1>");
-
-            // Display current state, and ON/OFF buttons for GPIO 26
-            client.println("<p>GPIO 26 - State " + output26State + "</p>");
-            // If the output26State is off, it displays the ON button
-            if (output26State == "off") {
-              client.println("<p><a href=\"/26/on\"><button class=\"button\">ON</button></a></p>");
-            } else {
-              client.println("<p><a href=\"/26/off\"><button class=\"button button2\">OFF</button></a></p>");
-            }
-
-            // Display current state, and ON/OFF buttons for GPIO 27
-            client.println("<p>GPIO 27 - State " + output27State + "</p>");
-            // If the output27State is off, it displays the ON button
-            if (output27State == "off") {
-              client.println("<p><a href=\"/27/on\"><button class=\"button\">ON</button></a></p>");
-            } else {
-              client.println("<p><a href=\"/27/off\"><button class=\"button button2\">OFF</button></a></p>");
-            }
-            client.println("</body></html>");
-
-            // The HTTP response ends with another blank line
-            client.println();
-            // Break out of the while loop
-            break;
-          } else { // if you got a newline, then clear currentLine
-            currentLine = "";
-          }
-        } else if (c != '\r') {  // if you got anything else but a carriage return character,
-          currentLine += c;      // add it to the end of the currentLine
+        if (ppmChannel >= PPM_CHANNELS)
+        {
+            ppmChannel = 0;
+            timerAlarmWrite(timer, PPM_FRAME_LENGTH - usedFrameLength, true);
+            usedFrameLength = 0;
         }
-      }
+        else
+        {
+            usedFrameLength += currentChannelValue - PPM_PULSE_LENGTH;
+            timerAlarmWrite(timer, currentChannelValue - PPM_PULSE_LENGTH, true);
+        }
     }
-    // Clear the header variable
-    header = "";
-    // Close the connection
-    client.stop();
-    Serial.println("Client disconnected.");
-    Serial.println("");
-  }
+    portEXIT_CRITICAL(&timerMux);
+    digitalWrite(OUTPUT_PIN, ppmOutput);
+}
+
+void setup()
+{
+    pinMode(OUTPUT_PIN, OUTPUT);
+    timer = timerBegin(0, 80, true);
+    timerAttachInterrupt(timer, &onPpmTimer, true);
+    timerAlarmWrite(timer, 12000, true);
+    timerAlarmEnable(timer);
+}
+
+void loop()
+{
+    /*
+    Here you can modify the content of channelValue array and it will be automatically
+    picked up by the code and outputted as PPM stream. For example:
+    */
+    channelValue[0] = 1750;
+    channelValue[1] = 1350;
+    channelValue[2] = 1050;
+    channelValue[3] = 1920;
 }
