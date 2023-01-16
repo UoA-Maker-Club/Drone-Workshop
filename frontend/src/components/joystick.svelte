@@ -44,23 +44,25 @@
         return ret;
     }
 
-    function updateJoyStick(pos: Pos) {
-        thumbStick.style.left = `${pos.x}px`;
-        thumbStick.style.top = `${pos.y}px`;
+    function updateJoyStick(pos?: Pos) {
+        thumbStick.style.translate = `${(pos??joystickPos).x}px ${(pos??joystickPos).y}px`;
     }
 
     function touchStart(e: TouchEvent) {
+        e.preventDefault();
+
         const touch = e.touches[0]
         const pos = findPos({
             x: touch.clientX,
             y: touch.clientY
         })
 
-        updateJoyStick(pos);
         sendApiRequest(pos);
     }
 
     function touchMove(e: TouchEvent) {
+        e.preventDefault();
+
         const touch = e.touches[0]
         const pos = findPos({
             x: touch.clientX,
@@ -72,14 +74,15 @@
         sendApiRequest(pos);
     }
 
-    function touchEnd(e: TouchEvent) {
-        // Recenter
-        if (bounceBack) {
-            updateJoyStick({
-                x: (joystickSize / 2 )- 2,
-                y: (joystickSize / 2) - 2
-            })
-        }
+    function resetJoyStick(){
+        updateJoyStick({
+            x: (joystickSize / 2 )- 2,
+            y: (joystickSize / 2) - 2
+        })
+    }
+
+    function touchEnd() {
+        if (bounceBack) resetJoyStick();
     }
 
     async function sendApiRequest(pos: Pos) {
@@ -107,8 +110,11 @@
         joystick.addEventListener('touchstart', (e) => touchStart(e));
         joystick.addEventListener('touchmove', (e) => touchMove(e));
         joystick.addEventListener('touchend', (e) => touchEnd(e));
+        joystick.addEventListener('touchcancel', (e) => touchEnd(e));
+
 
         joystickSize = joystick.offsetWidth;
+        resetJoyStick();
     })
 </script>
 
@@ -120,7 +126,6 @@
         <div class="line"></div>
         <div class="center"></div>
     </div>
-
 
     <div class="thumb-stick" bind:this={thumbStick}/>
 </div>
@@ -192,8 +197,9 @@
     	border-radius: 50%;
     	background-color: $main;
     	position: absolute;
-    	top: 50%;
-    	left: 50%;
+    	top: 0;
+    	left: 0;
     	transform: translate(-50%, -50%);
+        background-image: linear-gradient(146deg, #567dff 0%, #9f42d1 20%, #f04ab9 35%, #ff25c7 50%, #ff3c6d 75%, #ff856a 100%);
     }
 </style>

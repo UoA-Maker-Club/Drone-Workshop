@@ -1,12 +1,6 @@
 <script lang="ts">
     import Buttons from "../components/Buttons.svelte";
-import Joystick from "../components/joystick.svelte";
-
-    let armed = false;
-
-    function toggleArmed(){
-        armed = !armed;
-    }
+    import Joystick from "../components/joystick.svelte";
 </script>
 
 <div class="layout">
